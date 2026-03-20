@@ -35,4 +35,5 @@ flutter build apk --release
 
 - The app expects `assets/models/drishti_model.tflite` to exist before runtime.
 - Camera permission handling is provided by the `camera` plugin after the Android project is scaffolded.
+- Gallery imports use `image_picker`, so the same offline quality gate and TFLite analysis also work with existing photos.
 - Scan history is stored locally with `shared_preferences`, so the MVP works offline.
