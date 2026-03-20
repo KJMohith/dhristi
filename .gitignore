@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+processed/
+ai_training/output/*.keras
+ai_training/output/*.h5
+ai_training/output/*.pb
+tflite_model/*.tflite
+flutter_app/assets/models/*.tflite
+!flutter_app/assets/models/.gitkeep
+data/**/*.png
+data/**/*.jpg
+data/**/*.jpeg
+dataset/**/*.png
+dataset/**/*.jpg
+dataset/**/*.jpeg

@@ -7,10 +7,12 @@ and normalization.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Tuple
 
 import cv2
 import numpy as np
+
+from project_paths import SUPPORTED_IMAGE_SUFFIXES
 
 TARGET_SIZE: Tuple[int, int] = (224, 224)
 
@@ -98,7 +100,7 @@ def preprocess_dataset_split(input_dir: str | Path, output_dir: str | Path) -> i
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
     image_paths: Iterable[Path] = [
-        path for path in input_dir.rglob('*') if path.suffix.lower() in {'.png', '.jpg', '.jpeg'}
+        path for path in input_dir.rglob('*') if path.suffix.lower() in SUPPORTED_IMAGE_SUFFIXES
     ]
 
     processed_count = 0

@@ -1,0 +1,12 @@
+*.tflite binary
+*.keras binary
+*.h5 binary
+*.pb binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.zip binary
+*.tar binary
+*.gz binary

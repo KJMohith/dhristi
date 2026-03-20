@@ -2,22 +2,32 @@
 
 DRISHTI is an offline smartphone-based retinal fundus screening MVP designed for low-cost Android deployment. This repository includes Python tools for preprocessing, data quality checks, model training, TFLite conversion, and a Flutter app that performs on-device inference without cloud connectivity.
 
+## What changed for run/deploy readiness
+
+- `data/` is now the default dataset root.
+- `scripts/bootstrap_project.py` can create `.venv/`, install Python dependencies, and generate a small synthetic dataset for smoke tests.
+- Generated images and model artifacts are git-ignored so pull requests stay text-only and avoid binary file upload issues.
+- `.gitattributes` marks common model/image artifacts as binary for safer tooling behavior.
+
 ## Final Project Structure
 
 ```text
 DRISHTI/
 ├── ai_training/
 │   └── train_model.py
-├── dataset/
+├── data/
+│   ├── README.md
 │   ├── train/
 │   │   ├── glaucoma/
 │   │   └── normal/
 │   └── val/
 │       ├── glaucoma/
 │       └── normal/
+├── dataset/
+│   └── ... legacy fallback layout ...
 ├── flutter_app/
 │   ├── assets/models/
-│   │   └── drishti_model.tflite
+│   │   └── .gitkeep
 │   ├── lib/
 │   │   ├── screens/
 │   │   ├── services/
@@ -28,22 +38,95 @@ DRISHTI/
 │   └── preprocess.py
 ├── quality_check/
 │   └── quality_checker.py
+├── scripts/
+│   └── bootstrap_project.py
 ├── test_scripts/
 │   └── test_tflite.py
 ├── tflite_model/
 │   └── convert_to_tflite.py
+├── project_paths.py
+├── .gitattributes
+├── .gitignore
 ├── README.md
 └── requirements.txt
 ```
 
-## Part 1 — Data Pipeline
+## Quick start
 
-### Dataset Layout
+### 1. Bootstrap everything needed to run locally
 
-Store images like this:
+```bash
+python scripts/bootstrap_project.py
+```
+
+That command:
+- creates `data/train/...` and `data/val/...`
+- generates a small synthetic sample dataset for smoke testing
+- creates `.venv/`
+- installs dependencies from `requirements.txt`
+
+If you already have dependencies installed, skip package installation:
+
+```bash
+python scripts/bootstrap_project.py --skip-install
+```
+
+### 2. Check the dataset summary
+
+```bash
+python preprocessing/dataset_loader.py --dataset_root data
+```
+
+### 3. Optionally preprocess the dataset
+
+```bash
+python preprocessing/preprocess.py --input data/train --output processed/train
+python preprocessing/preprocess.py --input data/val --output processed/val
+```
+
+### 4. Train the model
+
+```bash
+python ai_training/train_model.py --dataset_root data --epochs 10
+```
+
+Saved outputs:
+- `ai_training/output/best_model.keras`
+- `ai_training/output/final_model.keras`
+- `ai_training/output/classification_report.txt`
+
+### 5. Convert to TensorFlow Lite
+
+```bash
+python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.keras --output tflite_model/drishti_model.tflite
+```
+
+### 6. Test one image offline
+
+```bash
+python test_scripts/test_tflite.py --model tflite_model/drishti_model.tflite --image data/val/normal/normal_val_1.png
+```
+
+### 7. Copy the generated model into Flutter assets
+
+```bash
+cp tflite_model/drishti_model.tflite flutter_app/assets/models/drishti_model.tflite
+```
+
+### 8. Run Flutter on Android
+
+```bash
+cd flutter_app
+flutter pub get
+flutter run
+```
+
+## Dataset layout
+
+Store real images like this:
 
 ```text
-dataset/
+data/
    train/
       glaucoma/
       normal/
@@ -52,7 +135,9 @@ dataset/
       normal/
 ```
 
-### Preprocessing Steps
+`dataset/` is still accepted as a fallback for backward compatibility, but all scripts now default to `data/`.
+
+## Preprocessing steps
 
 `preprocessing/preprocess.py` implements:
 - Circular retina crop where possible
@@ -61,14 +146,7 @@ dataset/
 - Resize to `224x224`
 - Normalize pixels to `[0, 1]`
 
-### Example Commands
-
-```bash
-python preprocessing/preprocess.py --input dataset/train --output processed/train
-python preprocessing/dataset_loader.py --dataset_root dataset
-```
-
-## Part 2 — Image Quality Check Module
+## Image quality check module
 
 `quality_check/quality_checker.py` includes:
 - Blur detection using Laplacian variance
@@ -79,10 +157,10 @@ python preprocessing/dataset_loader.py --dataset_root dataset
 Example:
 
 ```bash
-python quality_check/quality_checker.py --image sample_fundus.jpg
+python quality_check/quality_checker.py --image data/val/normal/normal_val_1.png
 ```
 
-## Part 3 — AI Model Training
+## AI model training
 
 `ai_training/train_model.py`:
 - Uses `MobileNetV3Small` pretrained on ImageNet
@@ -92,127 +170,17 @@ python quality_check/quality_checker.py --image sample_fundus.jpg
 - Trains for **at least 10 epochs**
 - Reports accuracy, precision, and recall during training, plus a validation classification report at the end
 
-Train with:
-
-```bash
-python ai_training/train_model.py --dataset_root dataset --epochs 10
-```
-
-Saved outputs:
-- `ai_training/output/best_model.keras`
-- `ai_training/output/final_model.keras`
-- `ai_training/output/classification_report.txt`
-
-## Part 4 — Model Compression
-
-Convert to TensorFlow Lite with post-training quantization:
-
-```bash
-python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.keras --output tflite_model/drishti_model.tflite
-```
-
-The converter applies `tf.lite.Optimize.DEFAULT` with float16 quantization. The script prints the final model size and warns if it is above the `< 5 MB` target.
-
-## Part 5 — TFLite Test Script
-
-`test_scripts/test_tflite.py` loads a `.tflite` model, preprocesses an input fundus image, runs inference, and prints:
-- Predicted class
-- Confidence score
-- Raw probability vector
-
-Usage:
-
-```bash
-python test_scripts/test_tflite.py --model tflite_model/drishti_model.tflite --image sample_fundus.jpg
-```
-
-## Part 6 + 7 — Flutter Mobile App + TFLite Integration
-
-The Flutter app in `flutter_app/` includes:
-
-- **Camera Capture Screen**
-  - Live camera preview
-  - Circular alignment overlay
-  - Capture and analyze button
-  - On-device quality gate before inference
-- **AI Result Screen**
-  - Traffic-light triage
-    - Green → Healthy
-    - Yellow → Risk
-    - Red → Refer doctor
-- **History Screen**
-  - Stores scans locally with `SharedPreferences`
-- **TFLite Integration**
-  - Loads `assets/models/drishti_model.tflite`
-  - Resizes input to `224x224`
-  - Normalizes pixels to `[0, 1]`
-  - Runs offline inference with `tflite_flutter`
-
-### Flutter Setup
-
-1. Install Flutter and Android Studio.
-2. Copy your generated TFLite model into:
-   - `flutter_app/assets/models/drishti_model.tflite`
-3. Fetch packages:
-
-```bash
-cd flutter_app
-flutter pub get
-```
-
-4. Run on Android:
-
-```bash
-flutter run
-```
-
-## Android Deployment Notes
+## Android deployment notes
 
 - The MVP is designed for **offline inference only**.
 - No cloud APIs are required.
 - Use a smartphone + fundus lens attachment for acquisition.
-- For real clinical deployment, add stronger validation, calibration, and regulatory workflows.
+- Replace the synthetic bootstrap dataset with validated clinical data before production deployment.
+- Package a freshly trained `.tflite` model into `flutter_app/assets/models/drishti_model.tflite` before building a release APK/AAB.
 
-## Step-by-Step End-to-End Run Instructions
+## Notes and recommended next steps
 
-1. **Create a Python environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-2. **Add dataset images** under `dataset/train/...` and `dataset/val/...`.
-3. **Optionally preprocess** the dataset:
-   ```bash
-   python preprocessing/preprocess.py --input dataset/train --output processed/train
-   python preprocessing/preprocess.py --input dataset/val --output processed/val
-   ```
-4. **Train the model**
-   ```bash
-   python ai_training/train_model.py --dataset_root dataset --epochs 10
-   ```
-5. **Convert to TFLite**
-   ```bash
-   python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.keras
-   ```
-6. **Test one image offline**
-   ```bash
-   python test_scripts/test_tflite.py --model tflite_model/drishti_model.tflite --image sample_fundus.jpg
-   ```
-7. **Copy model into Flutter assets**
-   ```bash
-   cp tflite_model/drishti_model.tflite flutter_app/assets/models/drishti_model.tflite
-   ```
-8. **Run Flutter app on Android**
-   ```bash
-   cd flutter_app
-   flutter pub get
-   flutter run
-   ```
-
-## Notes and Recommended Next Steps
-
-- This scaffold currently uses two classes from the dataset structure you specified: `glaucoma` and `normal`.
+- This scaffold currently uses two classes: `glaucoma` and `normal`.
 - If you also want diabetic retinopathy, extend the dataset folders and labels to multi-class or multi-label screening.
 - For stronger mobile quality checks, add vessel visibility, glare detection, and field-of-view estimation.
 - For more aggressive size reduction under 5 MB, consider pruning or full int8 quantization with a representative dataset.
