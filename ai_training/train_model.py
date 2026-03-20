@@ -115,7 +115,7 @@ def build_model(num_classes: int = 2) -> keras.Model:
 
 
 def train(dataset_root: str, output_dir: str = 'ai_training/output', epochs: int = 10) -> Path:
-    """Train the model and save the best Keras checkpoint."""
+    """Train the model and save compatible HDF5 checkpoints for TensorFlow 2.13.x."""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -124,8 +124,8 @@ def train(dataset_root: str, output_dir: str = 'ai_training/output', epochs: int
     class_weight = compute_class_weight_map(data_root)
     model = build_model(num_classes=len(CLASS_NAMES))
 
-    best_model_path = output_path / 'best_model.keras'
-    final_model_path = output_path / 'final_model.keras'
+    best_model_path = output_path / 'best_model.h5'
+    final_model_path = output_path / 'final_model.h5'
 
     callbacks = [
         keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True),
