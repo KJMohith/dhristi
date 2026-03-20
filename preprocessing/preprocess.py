@@ -17,6 +17,22 @@ from project_paths import SUPPORTED_IMAGE_SUFFIXES
 TARGET_SIZE: Tuple[int, int] = (224, 224)
 
 
+def ensure_uint8_bgr(image: np.ndarray) -> np.ndarray:
+    """Normalize inputs from TensorFlow/OpenCV into uint8 BGR images."""
+    if image.dtype != np.uint8:
+        image = np.asarray(image)
+        max_value = float(np.max(image)) if image.size else 0.0
+        scale = 255.0 if max_value <= 1.0 else 1.0
+        image = np.clip(image * scale, 0, 255).astype(np.uint8)
+
+    if image.ndim == 2:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    elif image.ndim == 3 and image.shape[2] == 1:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    return image
+
+
 def load_image(image_path: str | Path) -> np.ndarray:
     """Load an image from disk in BGR format."""
     image = cv2.imread(str(image_path))
@@ -79,6 +95,7 @@ def preprocess_image(image: np.ndarray, target_size: Tuple[int, int] = TARGET_SI
     4. Resize to 224x224.
     5. Normalize to [0, 1].
     """
+    image = ensure_uint8_bgr(image)
     image = crop_retina_region(image)
     image = cv2.GaussianBlur(image, (5, 5), 0)
     image = apply_clahe(image)
