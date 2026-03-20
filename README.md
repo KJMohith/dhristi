@@ -77,6 +77,22 @@ python scripts/bootstrap_project.py --skip-install
 python preprocessing/dataset_loader.py --dataset_root data
 ```
 
+The trainer now refuses to run if the same image appears in both `train/` and `val/`, so fix duplicated splits before training.
+
+If you only have one folder per class and need a proper train/validation split, create one first:
+
+```bash
+python scripts/split_dataset.py --input raw_dataset --output data --val-ratio 0.2
+```
+
+If you accidentally copied the same images into both `train/` and `val/`, repair the existing dataset in place:
+
+```bash
+python scripts/split_dataset.py --input data --in-place --val-ratio 0.2
+```
+
+This deduplicates the source images by content and rebuilds a clean split.
+
 ### 3. Optionally preprocess the dataset
 
 ```bash
@@ -91,20 +107,22 @@ python ai_training/train_model.py --dataset_root data --epochs 10
 ```
 
 Saved outputs:
-- `ai_training/output/best_model.keras`
-- `ai_training/output/final_model.keras`
+- `ai_training/output/best_model.h5`
+- `ai_training/output/final_model.h5`
 - `ai_training/output/classification_report.txt`
 
 ### 5. Convert to TensorFlow Lite
 
 ```bash
-python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.keras --output tflite_model/drishti_model.tflite
+python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.h5 --output tflite_model/drishti_model.tflite
 ```
 
 ### 6. Test one image offline
 
 ```bash
 python test_scripts/test_tflite.py --model tflite_model/drishti_model.tflite --image data/val/normal/normal_val_1.png
+# or let the script auto-pick the first validation image
+python test_scripts/test_tflite.py --model tflite_model/drishti_model.tflite
 ```
 
 ### 7. Copy the generated model into Flutter assets
@@ -169,9 +187,9 @@ python quality_check/quality_checker.py --image data/val/normal/normal_val_1.png
 - Uses `MobileNetV3Small` pretrained on ImageNet
 - Freezes the backbone initially
 - Adds `GlobalAveragePooling2D -> Dense(128, relu) -> Dropout(0.4) -> Dense(softmax)`
-- Uses augmentation, `EarlyStopping`, and `ModelCheckpoint`
+- Uses augmentation, inverse-frequency class weighting for imbalanced training sets, `EarlyStopping`, and `ModelCheckpoint`
 - Trains for **at least 10 epochs**
-- Reports accuracy, precision, and recall during training, plus a validation classification report at the end
+- Refuses to train if duplicate images are present in both `train/` and `val/`, and reports a validation classification report without undefined-metric warnings
 
 ## Android deployment notes
 
@@ -187,3 +205,10 @@ python quality_check/quality_checker.py --image data/val/normal/normal_val_1.png
 - If you also want diabetic retinopathy, extend the dataset folders and labels to multi-class or multi-label screening.
 - For stronger mobile quality checks, add vessel visibility, glare detection, and field-of-view estimation.
 - For more aggressive size reduction under 5 MB, consider pruning or full int8 quantization with a representative dataset.
+
+
+## Dependency compatibility notes
+
+- The Python environment is pinned to `numpy<2` and `tensorflow<2.14` to avoid TensorFlow/NumPy ABI mismatches on Windows.
+- Training checkpoints default to `.h5` output files for wider compatibility with TensorFlow 2.13.x on Windows.
+- Use `scripts/split_dataset.py` when your source data starts in one folder per class, or run it with `--in-place` to repair an already-duplicated `data/` tree; it deduplicates by content and rebuilds stratified train/val splits.
