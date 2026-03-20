@@ -29,7 +29,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Convert Keras model to TFLite.')
-    parser.add_argument('--model', default='ai_training/output/best_model.h5', help='Path to trained Keras model')
+    parser.add_argument('--model', default='ai_training/output/best_model.keras', help='Path to trained Keras model')
     parser.add_argument('--output', default='tflite_model/drishti_model.tflite', help='Output .tflite path')
     args = parser.parse_args()
 
