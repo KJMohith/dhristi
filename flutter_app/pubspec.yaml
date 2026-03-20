@@ -1,0 +1,24 @@
+name: drishti_flutter_app
+description: Offline fundus screening MVP for glaucoma and diabetic retinopathy risk triage.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  camera: ^0.11.0+2
+  image: ^4.2.0
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  provider: ^6.1.2
+  shared_preferences: ^2.2.3
+  tflite_flutter: ^0.11.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/models/drishti_model.tflite
