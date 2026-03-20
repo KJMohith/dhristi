@@ -25,6 +25,7 @@ class _CameraScreenState extends State<CameraScreen> {
   final TfliteService _tfliteService = TfliteService();
   CameraController? _controller;
   bool _isBusy = false;
+  bool _isInitializing = true;
   String? _message;
 
   @override
@@ -34,8 +35,16 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initCamera() async {
+    setState(() {
+      _isInitializing = true;
+      _message = null;
+    });
+
     try {
       final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        throw Exception('No camera was detected on this device.');
+      }
       final backCamera = cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
@@ -47,11 +56,20 @@ class _CameraScreenState extends State<CameraScreen> {
       );
       await controller.initialize();
       await _tfliteService.loadModel();
+      await _controller?.dispose();
       if (!mounted) return;
-      setState(() => _controller = controller);
+      setState(() {
+        _controller = controller;
+        _isInitializing = false;
+      });
     } catch (error) {
+      await _controller?.dispose();
       if (!mounted) return;
-      setState(() => _message = 'Camera initialization failed: $error');
+      setState(() {
+        _controller = null;
+        _isInitializing = false;
+        _message = 'Camera initialization failed: $error';
+      });
     }
   }
 
@@ -111,6 +129,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _controller?.dispose();
+    _tfliteService.dispose();
     super.dispose();
   }
 
@@ -124,7 +143,32 @@ class _CameraScreenState extends State<CameraScreen> {
         children: [
           Expanded(
             child: controller == null || !controller.value.isInitialized
-                ? Center(child: Text(_message ?? 'Initializing camera...'))
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isInitializing) ...[
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 16),
+                            const Text('Initializing camera and offline model...'),
+                          ] else ...[
+                            Text(
+                              _message ?? 'Camera is unavailable.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: _initCamera,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry setup'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  )
                 : Stack(
                     fit: StackFit.expand,
                     children: [
@@ -160,7 +204,9 @@ class _CameraScreenState extends State<CameraScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: FilledButton.icon(
-              onPressed: _isBusy ? null : _captureAndAnalyze,
+              onPressed: _isBusy || _isInitializing || controller == null || !controller.value.isInitialized
+                  ? null
+                  : _captureAndAnalyze,
               icon: _isBusy
                   ? const SizedBox(
                       width: 18,

@@ -30,10 +30,19 @@ class HistoryScreen extends StatelessWidget {
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final record = records[index];
+                final imageFile = File(record.imagePath);
                 return ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(File(record.imagePath), width: 56, height: 56, fit: BoxFit.cover),
+                    child: imageFile.existsSync()
+                        ? Image.file(imageFile, width: 56, height: 56, fit: BoxFit.cover)
+                        : Container(
+                            width: 56,
+                            height: 56,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.image_not_supported_outlined),
+                          ),
                   ),
                   title: Text(record.label),
                   subtitle: Text(
