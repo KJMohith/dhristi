@@ -33,10 +33,10 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
-    _initCamera();
+    _initializeExperience();
   }
 
-  Future<void> _initCamera() async {
+  Future<void> _initializeExperience() async {
     setState(() {
       _isInitializing = true;
       _message = null;
@@ -44,7 +44,18 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       await _tfliteService.loadModel();
+      await _initCamera();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isInitializing = false;
+        _message = 'Setup failed: $error';
+      });
+    }
+  }
 
+  Future<void> _initCamera() async {
+    try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         throw Exception('No camera was detected on this device.');
@@ -194,7 +205,7 @@ class _CameraScreenState extends State<CameraScreen> {
                               runSpacing: 12,
                               children: [
                                 FilledButton.icon(
-                                  onPressed: _initCamera,
+                                  onPressed: _initializeExperience,
                                   icon: const Icon(Icons.refresh),
                                   label: const Text('Retry setup'),
                                 ),
