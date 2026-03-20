@@ -2,12 +2,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from typing import Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import tensorflow as tf
 from sklearn.metrics import classification_report
 from tensorflow import keras
 from tensorflow.keras import layers
+
+from project_paths import resolve_data_root
 
 IMAGE_SIZE: Tuple[int, int] = (224, 224)
 BATCH_SIZE = 16
@@ -16,8 +23,9 @@ CLASS_NAMES = ['glaucoma', 'normal']
 
 def build_datasets(dataset_root: str):
     """Create augmented training and deterministic validation datasets."""
+    data_root = resolve_data_root(dataset_root)
     train_ds = keras.utils.image_dataset_from_directory(
-        Path(dataset_root) / 'train',
+        data_root / 'train',
         labels='inferred',
         label_mode='int',
         image_size=IMAGE_SIZE,
@@ -25,7 +33,7 @@ def build_datasets(dataset_root: str):
         shuffle=True,
     )
     val_ds = keras.utils.image_dataset_from_directory(
-        Path(dataset_root) / 'val',
+        data_root / 'val',
         labels='inferred',
         label_mode='int',
         image_size=IMAGE_SIZE,
@@ -96,7 +104,7 @@ def train(dataset_root: str, output_dir: str = 'ai_training/output', epochs: int
         ),
     ]
 
-    history = model.fit(train_ds, validation_data=val_ds, epochs=max(epochs, 10), callbacks=callbacks)
+    model.fit(train_ds, validation_data=val_ds, epochs=max(epochs, 10), callbacks=callbacks)
     model.save(output_path / 'final_model.keras')
 
     y_true = tf.concat([labels for _, labels in val_ds], axis=0).numpy()
@@ -115,7 +123,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Train the DRISHTI retina classifier.')
-    parser.add_argument('--dataset_root', default='dataset', help='Path to dataset root')
+    parser.add_argument('--dataset_root', default='data', help='Path to dataset root')
     parser.add_argument('--output_dir', default='ai_training/output', help='Where to save trained models')
     parser.add_argument('--epochs', type=int, default=10, help='Minimum number of training epochs')
     args = parser.parse_args()

@@ -82,10 +82,10 @@ def evaluate_image_path(image_path: str) -> Dict[str, object]:
         raise FileNotFoundError(f'Cannot load image: {image_path}')
     result = evaluate_quality(image)
     return {
-        'is_good': result.is_good,
-        'blur_score': result.blur_score,
-        'brightness_score': result.brightness_score,
-        'center_alignment_score': result.center_alignment_score,
+        'is_good': bool(result.is_good),
+        'blur_score': float(result.blur_score),
+        'brightness_score': float(result.brightness_score),
+        'center_alignment_score': float(result.center_alignment_score),
         'reasons': list(result.reasons),
     }
 

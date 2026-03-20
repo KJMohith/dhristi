@@ -1,0 +1,15 @@
+{
+  "generated_by": "scripts/bootstrap_project.py",
+  "python": "3.10.19",
+  "files": [
+    "data/train/glaucoma/glaucoma_train_1.png",
+    "data/train/glaucoma/glaucoma_train_2.png",
+    "data/train/normal/normal_train_1.png",
+    "data/train/normal/normal_train_2.png",
+    "data/val/glaucoma/glaucoma_val_1.png",
+    "data/val/glaucoma/glaucoma_val_2.png",
+    "data/val/normal/normal_val_1.png",
+    "data/val/normal/normal_val_2.png"
+  ],
+  "note": "Synthetic sample images for smoke tests only; replace with validated clinical data before deployment."
+}
