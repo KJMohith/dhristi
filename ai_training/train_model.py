@@ -27,7 +27,7 @@ def build_datasets(dataset_root: str):
     train_ds = keras.utils.image_dataset_from_directory(
         data_root / 'train',
         labels='inferred',
-        label_mode='int',
+        label_mode='categorical',
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
         shuffle=True,
@@ -35,7 +35,7 @@ def build_datasets(dataset_root: str):
     val_ds = keras.utils.image_dataset_from_directory(
         data_root / 'val',
         labels='inferred',
-        label_mode='int',
+        label_mode='categorical',
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
         shuffle=False,
@@ -77,7 +77,7 @@ def build_model(num_classes: int = 2) -> keras.Model:
     model = keras.Model(inputs, outputs)
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=1e-3),
-        loss='sparse_categorical_crossentropy',
+        loss='categorical_crossentropy',
         metrics=[
             'accuracy',
             keras.metrics.Precision(name='precision'),
@@ -107,7 +107,7 @@ def train(dataset_root: str, output_dir: str = 'ai_training/output', epochs: int
     model.fit(train_ds, validation_data=val_ds, epochs=max(epochs, 10), callbacks=callbacks)
     model.save(output_path / 'final_model.keras')
 
-    y_true = tf.concat([labels for _, labels in val_ds], axis=0).numpy()
+    y_true = tf.concat([labels for _, labels in val_ds], axis=0).numpy().argmax(axis=1)
     y_pred = model.predict(val_ds, verbose=0).argmax(axis=1)
     report = classification_report(y_true, y_pred, target_names=CLASS_NAMES, digits=4)
     report_path = output_path / 'classification_report.txt'

@@ -117,9 +117,12 @@ cp tflite_model/drishti_model.tflite flutter_app/assets/models/drishti_model.tfl
 
 ```bash
 cd flutter_app
+flutter create --platforms=android .
 flutter pub get
 flutter run
 ```
+
+The repository currently ships the Flutter `lib/`, assets, and `pubspec.yaml`, but does not include the generated platform folders such as `android/`. Run `flutter create --platforms=android .` once inside `flutter_app/` to scaffold the Android runner before your first local build.
 
 ## Dataset layout
 

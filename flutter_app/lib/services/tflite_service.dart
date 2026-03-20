@@ -21,7 +21,15 @@ class TfliteService {
   Interpreter? _interpreter;
 
   Future<void> loadModel() async {
-    _interpreter ??= await Interpreter.fromAsset('assets/models/drishti_model.tflite');
+    try {
+      _interpreter ??= await Interpreter.fromAsset('assets/models/drishti_model.tflite');
+    } catch (error) {
+      throw Exception(
+        'Unable to load the bundled AI model. '
+        'Make sure flutter_app/assets/models/drishti_model.tflite is packaged before deployment. '
+        'Original error: $error',
+      );
+    }
   }
 
   Future<InferenceResult> predict(String imagePath) async {
@@ -63,5 +71,10 @@ class TfliteService {
       confidence: maxScore,
       scores: scores,
     );
+  }
+
+  void dispose() {
+    _interpreter?.close();
+    _interpreter = null;
   }
 }
