@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +24,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   final QualityService _qualityService = QualityService();
   final TfliteService _tfliteService = TfliteService();
+  final ImagePicker _imagePicker = ImagePicker();
   CameraController? _controller;
   bool _isBusy = false;
   bool _isInitializing = true;
@@ -41,6 +43,8 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
+      await _tfliteService.loadModel();
+
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         throw Exception('No camera was detected on this device.');
@@ -55,7 +59,6 @@ class _CameraScreenState extends State<CameraScreen> {
         enableAudio: false,
       );
       await controller.initialize();
-      await _tfliteService.loadModel();
       await _controller?.dispose();
       if (!mounted) return;
       setState(() {
@@ -73,10 +76,7 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  Future<void> _captureAndAnalyze() async {
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized || _isBusy) return;
-
+  Future<void> _analyzeImage(String sourcePath) async {
     setState(() {
       _isBusy = true;
       _message = null;
@@ -84,9 +84,12 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       final tempDir = await getTemporaryDirectory();
-      final rawCapture = await controller.takePicture();
-      final savedPath = path.join(tempDir.path, 'drishti_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await File(rawCapture.path).copy(savedPath);
+      final extension = path.extension(sourcePath);
+      final savedPath = path.join(
+        tempDir.path,
+        'drishti_${DateTime.now().millisecondsSinceEpoch}${extension.isEmpty ? '.jpg' : extension}',
+      );
+      await File(sourcePath).copy(savedPath);
 
       final quality = await _qualityService.assessImage(savedPath);
       if (!quality.isGood) {
@@ -126,6 +129,32 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> _captureAndAnalyze() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _isBusy) return;
+
+    try {
+      final rawCapture = await controller.takePicture();
+      await _analyzeImage(rawCapture.path);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _message = 'Camera capture failed: $error');
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    if (_isBusy || _isInitializing) return;
+
+    try {
+      final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (pickedFile == null) return;
+      await _analyzeImage(pickedFile.path);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _message = 'Gallery import failed: $error');
+    }
+  }
+
   @override
   void dispose() {
     _controller?.dispose();
@@ -155,14 +184,26 @@ class _CameraScreenState extends State<CameraScreen> {
                             const Text('Initializing camera and offline model...'),
                           ] else ...[
                             Text(
-                              _message ?? 'Camera is unavailable.',
+                              _message ?? 'Camera is unavailable. You can still analyze a saved photo.',
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
-                            FilledButton.icon(
-                              onPressed: _initCamera,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Retry setup'),
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: _initCamera,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Retry setup'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _isBusy || _isInitializing ? null : _pickFromGallery,
+                                  icon: const Icon(Icons.photo_library_outlined),
+                                  label: const Text('Choose from Gallery'),
+                                ),
+                              ],
                             ),
                           ],
                         ],
@@ -203,18 +244,29 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: FilledButton.icon(
-              onPressed: _isBusy || _isInitializing || controller == null || !controller.value.isInitialized
-                  ? null
-                  : _captureAndAnalyze,
-              icon: _isBusy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.camera),
-              label: Text(_isBusy ? 'Analyzing...' : 'Capture & Analyze'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                FilledButton.icon(
+                  onPressed: _isBusy || _isInitializing || controller == null || !controller.value.isInitialized
+                      ? null
+                      : _captureAndAnalyze,
+                  icon: _isBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.camera),
+                  label: Text(_isBusy ? 'Analyzing...' : 'Capture & Analyze'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _isBusy || _isInitializing ? null : _pickFromGallery,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Choose from Gallery'),
+                ),
+              ],
             ),
           ),
         ],
