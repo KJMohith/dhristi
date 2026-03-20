@@ -99,14 +99,14 @@ python ai_training/train_model.py --dataset_root data --epochs 10
 ```
 
 Saved outputs:
-- `ai_training/output/best_model.h5`
-- `ai_training/output/final_model.h5`
+- `ai_training/output/best_model.keras`
+- `ai_training/output/final_model.keras`
 - `ai_training/output/classification_report.txt`
 
 ### 5. Convert to TensorFlow Lite
 
 ```bash
-python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.h5 --output tflite_model/drishti_model.tflite
+python tflite_model/convert_to_tflite.py --model ai_training/output/best_model.keras --output tflite_model/drishti_model.tflite
 ```
 
 ### 6. Test one image offline
